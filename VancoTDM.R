@@ -1,7 +1,7 @@
 #################################################################################
 # Title:          Model-Informed Precision Dosing of Vancomycin                 #
 # Programmer:     Olivia Yip                                                    #
-# Date:           06 March 2023                                                 #
+# Date:           05 May 2023                                                  #
 # Updated:        NA                                                            #
 # Updated by:     NA                                                            #
 # Notes:                                                                        #
@@ -11,12 +11,13 @@ library(readxl)
 library(tidyverse)
 library(ggpubr)
 library(rstatix)
+library(ggplot2)
 
-vancoTDM <- read_excel("/Users/oliviayip/Library/Mobile Documents/com~apple~CloudDocs/UCSD/Research Projects/Vancomycin/Data TDMvancomycin.xlsx")
+vancoTDM <- read_excel("/Users/oliviayip/Library/Mobile Documents/com~apple~CloudDocs/UCSD/Research Projects/Vancomycin/TDMvancomycin.xlsx")
 
 #Load Rdata file (after first time executing code)-------------------------------------------------
 
-save(vancoTDM, file="/Users/oliviayip/Library/Mobile Documents/com~apple~CloudDocs/UCSD/Research Projects/Vancomycin/VancoTDM.Rdata")
+save(vancoTDM, file="/Users/oliviayip/Library/Mobile Documents/com~apple~CloudDocs/UCSD/Research Projects/Vancomycin/TDMvancomycin.Rdata")
 load(file="/Users/oliviayip/Library/Mobile Documents/com~apple~CloudDocs/UCSD/Research Projects/Vancomycin/VancoTDM.Rdata")
 
 vancoTDM = data.frame(vancoTDM)
@@ -26,13 +27,14 @@ names(vancoTDM) <- tolower(names(vancoTDM))
 vancoTDM$weight <- as.numeric(vancoTDM$weight)
 vancoTDM$scr <- as.numeric(vancoTDM$scr)
 vancoTDM$auc <- as.numeric(vancoTDM$auc)
+vancoTDM$clind_precisepk <- as.numeric(vancoTDM$clind_precisepk)
+vancoTDM$clind_shinyapps <- as.numeric(vancoTDM$clind_shinyapps)
 
 #AUC count
 auccount <- subset(vancoTDM, auc != "")
 
 str(vancoTDM)
 summary(vancoTDM)
-
 
 #Names: 
 names(vancoTDM)
@@ -51,7 +53,6 @@ summary(patientcount$scr, na.rm = TRUE)
 sd(patientcount$scr, na.rm = TRUE)
 summary(vancoTDM$auc, na.rm = TRUE)
 sd(vancoTDM$auc, na.rm = TRUE)
-
 
 #Comparing Precise PK and Shinyapps - CL
 
@@ -106,6 +107,16 @@ for (x in 1:nrow(vancoTDM)) {
 }
 accuracy_shinyapps = accuracy_shinyapps/n_ashiny
 
+#BOXPLOT - accuracy
+vancoTDM$accuracy = 0
+for (x in 1:nrow(vancoTDM)) {
+  if(!is.na((vancoTDM$aucss[x])) && !is.na((vancoTDM$auc_shinyapps[x]))) {
+    vancoTDM$accuracy[x] = vancoTDM$accuracy[x]+ ((vancoTDM$auc_shinyapps [x] - vancoTDM$aucss [x])/ vancoTDM$aucss[x])
+  }
+}
+vancoTDM$accuracy[vancoTDM$accuracy == 0] <- NA
+
+
 precision_shinyapps = 0
 n_pshiny = 0
 for (x in 1:nrow(vancoTDM)) {
@@ -115,54 +126,106 @@ for (x in 1:nrow(vancoTDM)) {
     }
 }
 precision_shinyapps = precision_shinyapps/ n_pshiny
+#BOXPLOT - precision
+vancoTDM$precision = 0
 
-
-#Comparing nonbayesian AUC with precise PK (standard) 
-accuracy_nonbayesian = 0
-n_anonbay = 0
 
 for (x in 1:nrow(vancoTDM)) {
-  if(!is.na((vancoTDM$auc_precisepk[x])) && !is.na((vancoTDM$auc_nonbayesian[x]))) {
-    accuracy_nonbayesian  = accuracy_nonbayesian  + ((vancoTDM$auc_nonbayesian [x] - vancoTDM$auc_precisepk [x])/ vancoTDM$auc_precisepk[x])
-    n_anonbay = n_anonbay + 1
-    }
+  if((!is.na(vancoTDM$aucss[x])) && (!is.na(vancoTDM$auc_shinyapps[x]))) {
+    vancoTDM$precision[x] = vancoTDM$precision[x] + abs((vancoTDM$auc_shinyapps[x] - vancoTDM$aucss[x])/vancoTDM$aucss[x])
+    
+  }
 }
-accuracy_nonbayesian = accuracy_nonbayesian/n_anonbay
+vancoTDM$precision[vancoTDM$precision == 0] <- NA
 
 
-precision_nonbayesian = 0
-n_pnonbay = 0
-for (x in 1:nrow(vancoTDM)) {
-  if(!is.na((vancoTDM$auc_precisepk[x])) && !is.na((vancoTDM$auc_nonbayesian[x]))) {
-    precision_nonbayesian = precision_nonbayesian + abs(((vancoTDM$auc_nonbayesian [x] - vancoTDM$auc_precisepk [x]))/ vancoTDM$auc_precisepk [x])
-    n_pnonbay = n_pnonbay + 1
-    }
-}
-precision_nonbayesian = precision_nonbayesian/ n_pnonbay
+# #Comparing nonbayesian AUC with precise PK (standard) 
+# accuracy_nonbayesian = 0
+# n_anonbay = 0
+# 
+# for (x in 1:nrow(vancoTDM)) {
+#   if(!is.na((vancoTDM$auc_precisepk[x])) && !is.na((vancoTDM$auc_nonbayesian[x]))) {
+#     accuracy_nonbayesian  = accuracy_nonbayesian  + ((vancoTDM$auc_nonbayesian [x] - vancoTDM$auc_precisepk [x])/ vancoTDM$auc_precisepk[x])
+#     n_anonbay = n_anonbay + 1
+#     }
+# }
+# accuracy_nonbayesian = accuracy_nonbayesian/n_anonbay
+# 
+# 
+# precision_nonbayesian = 0
+# n_pnonbay = 0
+# for (x in 1:nrow(vancoTDM)) {
+#   if(!is.na((vancoTDM$auc_precisepk[x])) && !is.na((vancoTDM$auc_nonbayesian[x]))) {
+#     precision_nonbayesian = precision_nonbayesian + abs(((vancoTDM$auc_nonbayesian [x] - vancoTDM$auc_precisepk [x]))/ vancoTDM$auc_precisepk [x])
+#     n_pnonbay = n_pnonbay + 1
+#     }
+# }
+# precision_nonbayesian = precision_nonbayesian/ n_pnonbay
+# 
+# 
+# #using shinyapp as the gold standard
+# 
+# accuracy = 0
+# n_acc = 0
+# for (x in 1:nrow(vancoTDM)) {
+#   if(!is.na((vancoTDM$aucss_shinyapps[x])) && !is.na((vancoTDM$auc_nonbayesian[x]))) {
+#     accuracy  = accuracy  + ((vancoTDM$auc_nonbayesian [x] - vancoTDM$aucss_shinyapps [x])/ vancoTDM$aucss_shinyapps[x])
+#     n_acc = n_acc +1
+#     }
+# }
+# accuracy = accuracy/n_acc
+# 
+# 
+# precision = 0
+# n_pre = 0
+# for (x in 1:nrow(vancoTDM)) {
+#   if(!is.na((vancoTDM$aucss_shinyapps[x])) && !is.na((vancoTDM$auc_nonbayesian[x]))) {
+#     precision = precision + abs(((vancoTDM$auc_nonbayesian [x] - vancoTDM$aucss_shinyapps [x]))/ vancoTDM$aucss_shinyapps [x])
+#     n_pre = n_pre + 1
+#     }
+# }
+# precision = precision/n_pre
+
+#CREATING BOXPLOTS FOR COMPARISON 
 
 
-#using shinyapp as the gold standard
-
-accuracy = 0
-n_acc = 0
-for (x in 1:nrow(vancoTDM)) {
-  if(!is.na((vancoTDM$aucss_shinyapps[x])) && !is.na((vancoTDM$auc_nonbayesian[x]))) {
-    accuracy  = accuracy  + ((vancoTDM$auc_nonbayesian [x] - vancoTDM$aucss_shinyapps [x])/ vancoTDM$aucss_shinyapps[x])
-    n_acc = n_acc +1
-    }
-}
-accuracy = accuracy/n_acc
+#Clearance
+ boxplot(vancoTDM$clind_precisepk,vancoTDM$clind_shinyapps,
+        names=c("Precise PK","ShinyApps"),
+        col=c("turquoise","tomato"),
+        ylab="Clearance (L/h/kg)",
+        main="Clearance",
+        outline=FALSE,
+        range = 0.0 )
 
 
-precision = 0
-n_pre = 0
-for (x in 1:nrow(vancoTDM)) {
-  if(!is.na((vancoTDM$aucss_shinyapps[x])) && !is.na((vancoTDM$auc_nonbayesian[x]))) {
-    precision = precision + abs(((vancoTDM$auc_nonbayesian [x] - vancoTDM$aucss_shinyapps [x]))/ vancoTDM$aucss_shinyapps [x])
-    n_pre = n_pre + 1
-    }
-}
-precision = precision/n_pre
+#Volume of Distribution (L/kg)
+ boxplot(vancoTDM$vdind_precisepk,vancoTDM$vdind_shinyapps,
+         names=c("Precise PK","ShinyApps"),
+         col=c("turquoise","tomato"),
+         ylab="Volume of Distribution (L/kg)",
+         main="Volume of Distribution",
+         outline=FALSE,
+         range = 0.0 )
 
-
-
+ 
+#Area Under the Curve
+ boxplot(vancoTDM$aucss,vancoTDM$auc_shinyapps,
+         names=c("Precise PK","ShinyApps"),
+         col=c("turquoise","tomato"),
+         ylab="Area-Under-the-Curve (AUC, mg/L/h)",
+         main="Area Under the Curve",
+         outline=FALSE,
+         range = 0.0 )
+ 
+ #Accuracy and Precision of Shinyapps
+ boxplot(vancoTDM$aucss,vancoTDM$auc_shinyapps,
+         names=c("Precise PK","ShinyApps"),
+         col=c("turquoise","tomato"),
+         ylab="Area-Under-the-Curve (AUC, mg/L/h)",
+         main="Area Under the Curve",
+         outline=FALSE,
+         range = 0.0 )
+ 
+ 
+ 
